@@ -1,0 +1,118 @@
+.grid-item {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.grid-item:hover {
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.grid-item-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-tertiary);
+  overflow: hidden;
+}
+
+.grid-item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.grid-item-folder,
+.grid-item-video,
+.grid-item-placeholder,
+.grid-item-loading,
+.grid-item-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.grid-item-folder-icon {
+  font-size: 48px;
+}
+
+.grid-item-video {
+  position: relative;
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-primary));
+}
+
+.grid-item-video-icon {
+  font-size: 48px;
+}
+
+.grid-item-video-overlay {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  color: white;
+  font-size: 16px;
+}
+
+.grid-item-placeholder span,
+.grid-item-error span {
+  font-size: 32px;
+  opacity: 0.5;
+}
+
+.spinner-small {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.grid-item-info {
+  padding: 8px 10px;
+}
+
+.grid-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.grid-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.grid-item-tag {
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--accent-color);
+  background-color: var(--accent-light);
+  border-radius: var(--radius-sm);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-item-tag-more {
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}

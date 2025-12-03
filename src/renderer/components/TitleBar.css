@@ -1,0 +1,75 @@
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.titlebar-drag {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: 12px;
+}
+
+.titlebar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.titlebar-icon {
+  font-size: 14px;
+}
+
+.titlebar-menu {
+  display: flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: background-color var(--transition-fast);
+}
+
+.titlebar-menu-btn:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.titlebar-controls {
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 32px;
+  color: var(--text-primary);
+  transition: background-color var(--transition-fast);
+}
+
+.titlebar-btn:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.titlebar-btn-close:hover {
+  background-color: #dc2626;
+  color: white;
+}
