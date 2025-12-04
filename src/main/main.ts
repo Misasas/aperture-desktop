@@ -1,31 +1,25 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import Store from 'electron-store';
 import { AppSettings, defaultSettings, IPC_CHANNELS } from '../shared/types';
 import { FileSystemService } from './services/fileSystem';
 import { ThumbnailService } from './services/thumbnail';
 import { MetadataService } from './services/metadata';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Initialize store
-const store = new Store<AppSettings>({
-  defaults: defaultSettings,
-});
+// In CommonJS, __dirname is already available
 
 // Services
 let fileSystemService: FileSystemService;
 let thumbnailService: ThumbnailService;
 let metadataService: MetadataService;
+let store: Store<AppSettings>;
 
 let mainWindow: BrowserWindow | null = null;
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-
 function createWindow() {
+  const isDev = !app.isPackaged;
   const settings = store.store;
-  
+
   mainWindow = new BrowserWindow({
     width: settings.window.width,
     height: settings.window.height,
@@ -36,7 +30,7 @@ function createWindow() {
     frame: false,
     titleBarStyle: 'hidden',
     webPreferences: {
-      preload: path.join(__dirname, '../preload/preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -83,6 +77,12 @@ function createWindow() {
 // Initialize services
 function initializeServices() {
   const userDataPath = app.getPath('userData');
+
+  // Initialize store
+  store = new Store<AppSettings>({
+    defaults: defaultSettings,
+  });
+
   fileSystemService = new FileSystemService();
   thumbnailService = new ThumbnailService(userDataPath);
   metadataService = new MetadataService();

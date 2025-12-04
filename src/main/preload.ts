@@ -1,5 +1,47 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS, AppSettings, FileSystemItem, FolderMetadata } from '../shared/types';
+import type { AppSettings, FileSystemItem, FolderMetadata } from '../shared/types';
+
+// IPC channel names (duplicated from shared/types to avoid require issues in preload)
+const IPC_CHANNELS = {
+  // Dialog
+  SELECT_FOLDER: 'dialog:select-folder',
+
+  // File system
+  READ_DIRECTORY: 'fs:read-directory',
+  READ_DIRECTORY_TREE: 'fs:read-directory-tree',
+  CREATE_FOLDER: 'fs:create-folder',
+  RENAME_ITEM: 'fs:rename-item',
+  DELETE_ITEM: 'fs:delete-item',
+  MOVE_ITEM: 'fs:move-item',
+  COPY_FILES: 'fs:copy-files',
+  GET_FILE_INFO: 'fs:get-file-info',
+  WATCH_DIRECTORY: 'fs:watch-directory',
+  UNWATCH_DIRECTORY: 'fs:unwatch-directory',
+
+  // Metadata
+  READ_METADATA: 'metadata:read',
+  WRITE_METADATA: 'metadata:write',
+
+  // Thumbnails
+  GET_THUMBNAIL: 'thumbnail:get',
+  CLEAR_THUMBNAIL_CACHE: 'thumbnail:clear-cache',
+
+  // Settings
+  GET_SETTINGS: 'settings:get',
+  SET_SETTINGS: 'settings:set',
+
+  // Window
+  MINIMIZE_WINDOW: 'window:minimize',
+  MAXIMIZE_WINDOW: 'window:maximize',
+  CLOSE_WINDOW: 'window:close',
+
+  // Shell
+  OPEN_IN_EXPLORER: 'shell:open-in-explorer',
+  OPEN_WITH_DEFAULT_APP: 'shell:open-with-default-app',
+
+  // Events (main -> renderer)
+  DIRECTORY_CHANGED: 'event:directory-changed',
+} as const;
 
 // Expose API to renderer
 contextBridge.exposeInMainWorld('electronAPI', {

@@ -5,6 +5,7 @@ node_modules/
 dist/
 build/
 out/
+release/
 
 # Environment variables
 .env
@@ -21,3 +22,9 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Claude Code
+.claude/
+
+# Project docs (optional - remove this line if you want to commit docs)
+aperture-desktop-requirements.md
