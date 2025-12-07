@@ -48,7 +48,10 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    // In production (ASAR), files are at: app.asar/dist/main/main.js
+    // So __dirname is app.asar/dist/main, and renderer is at app.asar/dist/renderer
+    const indexPath = path.join(__dirname, '..', 'renderer', 'index.html');
+    mainWindow.loadFile(indexPath);
   }
 
   // Show when ready

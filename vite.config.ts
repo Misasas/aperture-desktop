@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [
     react(),
   ],
+  base: './', // Use relative paths for assets in production
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src/renderer'),
