@@ -11,6 +11,9 @@
     "build:renderer": "vite build",
     "build:main": "tsc -p tsconfig.main.json",
     "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:portable": "npm run build && electron-builder --win portable",
+    "dist:dir": "npm run build && electron-builder --dir",
     "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
@@ -41,15 +44,43 @@
       "output": "release"
     },
     "files": [
-      "dist/**/*"
+      "dist/**/*",
+      "index.html",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/sharp",
+        "to": "node_modules/sharp",
+        "filter": ["**/*"]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/sharp/**/*"
     ],
     "win": {
-      "target": "nsis",
-      "icon": "assets/favicon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "Aperture-Portable-${version}.exe"
     }
   }
 }
