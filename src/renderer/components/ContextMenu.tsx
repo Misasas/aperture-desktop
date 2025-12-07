@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FileSystemItem, FolderItem } from '@shared/types';
+import { useState, useRef, useEffect } from 'react';
+import { FileSystemItem } from '@shared/types';
 import './ContextMenu.css';
 
 interface ContextMenuProps {
@@ -13,7 +13,6 @@ interface ContextMenuProps {
     createFolder: (parentPath: string, name?: string) => Promise<string>;
     renameItem: (oldPath: string, newName: string) => Promise<string>;
     deleteItem: (itemPath: string) => Promise<void>;
-    updateTags: (folderPath: string, tags: string[]) => Promise<void>;
   };
   onRefresh: () => void;
 }
@@ -31,9 +30,8 @@ export default function ContextMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x, y });
   const [showRenameInput, setShowRenameInput] = useState(false);
-  const [showTagInput, setShowTagInput] = useState(false);
   const [renameValue, setRenameValue] = useState('');
-  const [tagValue, setTagValue] = useState('');
+  const [fileExtension, setFileExtension] = useState('');
 
   // Adjust position if menu would go off screen
   useEffect(() => {
@@ -52,14 +50,36 @@ export default function ContextMenu({
 
   const handleRename = () => {
     if (item) {
-      setRenameValue(item.name);
+      if (item.type === 'file') {
+        // Extract filename without extension for files
+        const lastDotIndex = item.name.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+          const nameWithoutExt = item.name.substring(0, lastDotIndex);
+          const ext = item.name.substring(lastDotIndex);
+          setRenameValue(nameWithoutExt);
+          setFileExtension(ext);
+        } else {
+          setRenameValue(item.name);
+          setFileExtension('');
+        }
+      } else {
+        // For folders, use full name
+        setRenameValue(item.name);
+        setFileExtension('');
+      }
       setShowRenameInput(true);
     }
   };
 
   const handleRenameSubmit = async () => {
-    if (item && renameValue.trim() && renameValue !== item.name) {
-      await fileOps.renameItem(item.path, renameValue.trim());
+    if (item && renameValue.trim()) {
+      const newName = item.type === 'file' && fileExtension
+        ? renameValue.trim() + fileExtension
+        : renameValue.trim();
+
+      if (newName !== item.name) {
+        await fileOps.renameItem(item.path, newName);
+      }
     }
     setShowRenameInput(false);
     onClose();
@@ -72,25 +92,6 @@ export default function ContextMenu({
     }
   };
 
-  const handleEditTags = () => {
-    if (item && item.type === 'folder') {
-      const folder = item as FolderItem;
-      setTagValue(folder.tags.join(', '));
-      setShowTagInput(true);
-    }
-  };
-
-  const handleTagSubmit = async () => {
-    if (item && item.type === 'folder') {
-      const tags = tagValue
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
-      await fileOps.updateTags(item.path, tags);
-    }
-    setShowTagInput(false);
-    onClose();
-  };
 
   const handleOpenInExplorer = () => {
     const path = item?.path || currentPath;
@@ -98,70 +99,41 @@ export default function ContextMenu({
     onClose();
   };
 
-  const handleOpenWithDefaultApp = () => {
-    if (item) {
-      window.electronAPI.openWithDefaultApp(item.path);
-      onClose();
-    }
-  };
-
-  // Render rename input
+  // Render rename input as modal
   if (showRenameInput) {
     return (
-      <div
-        ref={menuRef}
-        className="context-menu"
-        style={{ left: position.x, top: position.y }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="context-menu-input">
-          <input
-            type="text"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleRenameSubmit();
-              if (e.key === 'Escape') onClose();
-            }}
-            autoFocus
-            placeholder="新しい名前"
-          />
-          <div className="context-menu-input-actions">
-            <button onClick={handleRenameSubmit}>OK</button>
-            <button onClick={onClose}>キャンセル</button>
+      <>
+        <div className="modal-overlay" onClick={onClose} />
+        <div
+          ref={menuRef}
+          className="rename-modal"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="rename-modal-header">名前を変更</div>
+          <div className="rename-modal-body">
+            <div className="rename-modal-input-wrapper">
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRenameSubmit();
+                  if (e.key === 'Escape') onClose();
+                }}
+                autoFocus
+                className="rename-modal-input"
+              />
+              {fileExtension && (
+                <span className="rename-modal-extension">{fileExtension}</span>
+              )}
+            </div>
+          </div>
+          <div className="rename-modal-actions">
+            <button onClick={onClose} className="rename-modal-btn rename-modal-btn-cancel">キャンセル</button>
+            <button onClick={handleRenameSubmit} className="rename-modal-btn rename-modal-btn-ok">OK</button>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  // Render tag input
-  if (showTagInput) {
-    return (
-      <div
-        ref={menuRef}
-        className="context-menu"
-        style={{ left: position.x, top: position.y }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="context-menu-input">
-          <input
-            type="text"
-            value={tagValue}
-            onChange={(e) => setTagValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleTagSubmit();
-              if (e.key === 'Escape') onClose();
-            }}
-            autoFocus
-            placeholder="タグをカンマ区切りで入力"
-          />
-          <div className="context-menu-input-actions">
-            <button onClick={handleTagSubmit}>OK</button>
-            <button onClick={onClose}>キャンセル</button>
-          </div>
-        </div>
-      </div>
+      </>
     );
   }
 
@@ -174,21 +146,6 @@ export default function ContextMenu({
     >
       {type === 'item' && item ? (
         <>
-          {item.type === 'folder' ? (
-            <>
-              <button className="context-menu-item" onClick={handleEditTags}>
-                🏷️ タグを編集
-              </button>
-              <div className="context-menu-separator" />
-            </>
-          ) : (
-            <>
-              <button className="context-menu-item" onClick={handleOpenWithDefaultApp}>
-                ▶️ 既定のアプリで開く
-              </button>
-              <div className="context-menu-separator" />
-            </>
-          )}
           <button className="context-menu-item" onClick={handleRename}>
             ✏️ 名前を変更
           </button>

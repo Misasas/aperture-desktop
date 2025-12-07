@@ -6,6 +6,7 @@ import MainContent from './components/MainContent';
 import Viewer from './components/Viewer';
 import FolderSelectScreen from './components/FolderSelectScreen';
 import ContextMenu from './components/ContextMenu';
+import LoadingOverlay from './components/LoadingOverlay';
 import { FileSystemItem, FileItem } from '@shared/types';
 import './styles/App.css';
 
@@ -23,10 +24,10 @@ export default function App() {
     items,
     treeItems,
     loading,
+    treeLoading,
     navigate,
     navigateUp,
     refresh,
-    loadTree,
   } = useFileSystem(settings.rootFolder);
 
   const fileOps = useFileOperations(refresh);
@@ -35,15 +36,27 @@ export default function App() {
   const [viewerItem, setViewerItem] = useState<FileItem | null>(null);
   const [viewerIndex, setViewerIndex] = useState(0);
 
+  // File index map (sorted by name ascending)
+  const fileIndexMap = React.useMemo(() => {
+    const files = items.filter((item): item is FileItem => item.type === 'file');
+    const sortedFiles = [...files].sort((a, b) =>
+      a.name.localeCompare(b.name, 'ja', { numeric: true })
+    );
+
+    const map = new Map<string, number>();
+    sortedFiles.forEach((file, index) => {
+      map.set(file.path, index);
+    });
+
+    return map;
+  }, [items]);
+
   // Context menu state
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   // Sidebar state
   const [sidebarWidth, setSidebarWidth] = useState(settings.sidebar.width);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(settings.sidebar.collapsed);
-
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Apply theme
   useEffect(() => {
@@ -62,8 +75,25 @@ export default function App() {
   const handleSelectRootFolder = async () => {
     const folder = await window.electronAPI.selectFolder();
     if (folder) {
-      await updateSettings({ rootFolder: folder });
+      await updateFolderHistory(folder);
     }
+  };
+
+  // Handle folder switch from history
+  const handleSwitchFolder = async (folder: string) => {
+    await updateFolderHistory(folder);
+  };
+
+  // Update folder history (max 10 items, most recent first)
+  const updateFolderHistory = async (folder: string) => {
+    const newHistory = [folder, ...settings.folderHistory.filter(f => f !== folder)].slice(0, 10);
+    await updateSettings({ rootFolder: folder, folderHistory: newHistory });
+  };
+
+  // Remove folder from history
+  const handleRemoveFromHistory = async (folder: string) => {
+    const newHistory = settings.folderHistory.filter(f => f !== folder);
+    await updateSettings({ folderHistory: newHistory });
   };
 
   // Handle sidebar resize
@@ -139,12 +169,6 @@ export default function App() {
     setViewerItem(null);
   }, []);
 
-  // Handle search
-  const handleSearch = useCallback((query: string) => {
-    setSearchQuery(query);
-    // TODO: Implement search functionality
-  }, []);
-
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -197,8 +221,18 @@ export default function App() {
   const fileItems = items.filter((i): i is FileItem => i.type === 'file');
 
   return (
-    <div className="app">
-      <TitleBar onSelectFolder={handleSelectRootFolder} />
+    <>
+      {treeLoading && <LoadingOverlay />}
+
+      <div className="app">
+        <TitleBar
+        onToggleSidebar={handleSidebarToggle}
+        thumbnailSize={settings.display.thumbnailSize}
+        sortBy={settings.display.sortBy}
+        sortOrder={settings.display.sortOrder}
+        showIndexNumbers={settings.display.showIndexNumbers}
+        onSettingsChange={(display) => updateSettings({ display: { ...settings.display, ...display } })}
+      />
       
       <div className="app-body">
         <Sidebar
@@ -207,14 +241,16 @@ export default function App() {
           items={treeItems}
           currentPath={currentPath}
           rootFolder={settings.rootFolder}
-          searchQuery={searchQuery}
-          onSearch={handleSearch}
+          folderHistory={settings.folderHistory}
           onItemClick={handleTreeItemClick}
           onContextMenu={handleContextMenu}
           onResize={handleSidebarResize}
           onResizeEnd={handleSidebarResizeEnd}
           onToggle={handleSidebarToggle}
-          onRefresh={loadTree}
+          onMoveItem={fileOps.moveItem}
+          onSelectFolder={handleSelectRootFolder}
+          onSwitchFolder={handleSwitchFolder}
+          onRemoveFromHistory={handleRemoveFromHistory}
         />
 
         <MainContent
@@ -225,12 +261,10 @@ export default function App() {
           thumbnailSize={settings.display.thumbnailSize}
           sortBy={settings.display.sortBy}
           sortOrder={settings.display.sortOrder}
-          itemsPerPage={settings.display.itemsPerPage}
+          showIndexNumbers={settings.display.showIndexNumbers}
           onItemClick={handleItemClick}
           onContextMenu={handleContextMenu}
           onNavigate={navigate}
-          onNavigateUp={navigateUp}
-          onSettingsChange={(display) => updateSettings({ display: { ...settings.display, ...display } })}
           fileOps={fileOps}
         />
       </div>
@@ -240,6 +274,8 @@ export default function App() {
           item={viewerItem}
           currentIndex={viewerIndex}
           totalCount={fileItems.length}
+          showIndexNumbers={settings.display.showIndexNumbers}
+          fileIndex={fileIndexMap.get(viewerItem.path)}
           onPrev={handleViewerPrev}
           onNext={handleViewerNext}
           onClose={handleViewerClose}
@@ -258,6 +294,7 @@ export default function App() {
           onRefresh={refresh}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

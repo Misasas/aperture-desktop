@@ -114,16 +114,6 @@
   background-color: var(--accent-hover);
 }
 
-.toolbar-btn-primary {
-  background-color: var(--accent-color);
-  color: white;
-  border-radius: var(--radius-sm);
-}
-
-.toolbar-btn-primary:hover {
-  background-color: var(--accent-hover);
-}
-
 .toolbar-select {
   padding: 6px 24px 6px 8px;
   font-size: 12px;

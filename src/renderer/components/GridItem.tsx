@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FileSystemItem, FolderItem, FileItem } from '@shared/types';
+import { useState, useEffect, useRef } from 'react';
+import { FileSystemItem, FileItem } from '@shared/types';
 import './GridItem.css';
 
 interface GridItemProps {
@@ -8,6 +8,8 @@ interface GridItemProps {
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onDoubleClick: () => void;
+  index?: number;
+  showIndexNumbers?: boolean;
 }
 
 export default function GridItem({
@@ -16,19 +18,65 @@ export default function GridItem({
   onClick,
   onContextMenu,
   onDoubleClick,
+  index,
+  showIndexNumbers = false,
 }: GridItemProps) {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const itemRef = useRef<HTMLDivElement>(null);
 
-  // Load thumbnail for files
+  // Intersection Observer to detect when item is visible
   useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            // Stop observing once visible
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        rootMargin: '100px', // Start loading 100px before entering viewport
+        threshold: 0.01, // Trigger when at least 1% is visible
+      }
+    );
+
+    if (itemRef.current) {
+      observer.observe(itemRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // Load thumbnail only when visible
+  useEffect(() => {
+    if (!isVisible) return;
+
     if (item.type === 'file' && (item as FileItem).isImage) {
       setLoading(true);
       setError(false);
-      
+
       window.electronAPI.getThumbnail(item.path)
-        .then((thumb) => {
+        .then((thumb: string | null) => {
+          setThumbnail(thumb);
+          setLoading(false);
+        })
+        .catch(() => {
+          setError(true);
+          setLoading(false);
+        });
+    } else if (item.type === 'folder') {
+      setLoading(true);
+      setError(false);
+
+      window.electronAPI.getFolderThumbnail(item.path)
+        .then((thumb: string | null) => {
           setThumbnail(thumb);
           setLoading(false);
         })
@@ -37,14 +85,14 @@ export default function GridItem({
           setLoading(false);
         });
     }
-  }, [item]);
+  }, [isVisible, item]);
 
   const isFolder = item.type === 'folder';
   const isVideo = !isFolder && (item as FileItem).isVideo;
-  const tags = isFolder ? (item as FolderItem).tags : [];
 
   return (
     <div
+      ref={itemRef}
       className="grid-item"
       onClick={onClick}
       onContextMenu={onContextMenu}
@@ -54,18 +102,25 @@ export default function GridItem({
         className="grid-item-thumb"
         style={{ height: `${size.height}px` }}
       >
-        {isFolder ? (
+        {loading ? (
+          <div className="grid-item-loading">
+            <div className="spinner-small" />
+          </div>
+        ) : isFolder && !thumbnail ? (
           <div className="grid-item-folder">
             <span className="grid-item-folder-icon">📁</span>
           </div>
+        ) : isFolder && thumbnail ? (
+          <img
+            src={`file://${thumbnail}`}
+            alt={item.name}
+            className="grid-item-image"
+            draggable={false}
+          />
         ) : isVideo ? (
           <div className="grid-item-video">
             <span className="grid-item-video-icon">🎬</span>
             <div className="grid-item-video-overlay">▶</div>
-          </div>
-        ) : loading ? (
-          <div className="grid-item-loading">
-            <div className="spinner-small" />
           </div>
         ) : thumbnail ? (
           <img
@@ -87,21 +142,8 @@ export default function GridItem({
 
       <div className="grid-item-info">
         <div className="grid-item-name truncate" title={item.name}>
-          {item.name}
+          {showIndexNumbers && item.type === 'file' && index !== undefined ? `${index + 1}` : item.name}
         </div>
-        
-        {tags.length > 0 && (
-          <div className="grid-item-tags">
-            {tags.slice(0, 3).map((tag) => (
-              <span key={tag} className="grid-item-tag" title={tag}>
-                #{tag}
-              </span>
-            ))}
-            {tags.length > 3 && (
-              <span className="grid-item-tag-more">+{tags.length - 3}</span>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

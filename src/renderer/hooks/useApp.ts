@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppSettings, FileSystemItem, FolderItem, defaultSettings } from '@shared/types';
+import { AppSettings, FileSystemItem, defaultSettings } from '@shared/types';
 
 // Settings hook
 export function useSettings() {
@@ -28,17 +28,21 @@ export function useFileSystem(rootFolder: string | null) {
   const [items, setItems] = useState<FileSystemItem[]>([]);
   const [treeItems, setTreeItems] = useState<FileSystemItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [treeLoading, setTreeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Load directory tree for sidebar
   const loadTree = useCallback(async () => {
     if (!rootFolder) return;
 
+    setTreeLoading(true);
     try {
       const tree = await window.electronAPI.readDirectoryTree(rootFolder, 10);
       setTreeItems(tree);
     } catch (err) {
       console.error('Error loading tree:', err);
+    } finally {
+      setTreeLoading(false);
     }
   }, [rootFolder]);
 
@@ -50,18 +54,7 @@ export function useFileSystem(rootFolder: string | null) {
     try {
       const contents = await window.electronAPI.readDirectory(path);
       
-      // Load tags for folders
-      const itemsWithTags = await Promise.all(
-        contents.map(async (item) => {
-          if (item.type === 'folder') {
-            const metadata = await window.electronAPI.readMetadata(item.path);
-            return { ...item, tags: metadata?.tags || [] } as FolderItem;
-          }
-          return item;
-        })
-      );
-
-      setItems(itemsWithTags);
+      setItems(contents);
       setCurrentPath(path);
     } catch (err: any) {
       setError(err.message || 'Failed to load directory');
@@ -121,6 +114,7 @@ export function useFileSystem(rootFolder: string | null) {
     items,
     treeItems,
     loading,
+    treeLoading,
     error,
     navigate,
     navigateUp,
@@ -187,16 +181,6 @@ export function useFileOperations(onComplete: () => void) {
     }
   }, [onComplete]);
 
-  const updateTags = useCallback(async (folderPath: string, tags: string[]) => {
-    setOperating(true);
-    try {
-      await window.electronAPI.writeMetadata(folderPath, tags);
-      onComplete();
-    } finally {
-      setOperating(false);
-    }
-  }, [onComplete]);
-
   return {
     operating,
     createFolder,
@@ -204,7 +188,6 @@ export function useFileOperations(onComplete: () => void) {
     deleteItem,
     moveItem,
     copyFiles,
-    updateTags,
   };
 }
 

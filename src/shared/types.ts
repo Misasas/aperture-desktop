@@ -15,16 +15,15 @@ export interface FolderItem {
   path: string;
   type: 'folder';
   modifiedAt: Date;
-  tags: string[];
   children?: (FileItem | FolderItem)[];
   isExpanded?: boolean;
+  thumbnailPath?: string;
 }
 
 export type FileSystemItem = FileItem | FolderItem;
 
 // Folder metadata (stored in .aperture.json)
 export interface FolderMetadata {
-  tags: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -33,6 +32,7 @@ export interface FolderMetadata {
 export interface AppSettings {
   version: string;
   rootFolder: string | null;
+  folderHistory: string[];
   theme: 'light' | 'dark' | 'cream';
   sidebar: {
     width: number;
@@ -43,6 +43,7 @@ export interface AppSettings {
     itemsPerPage: number;
     sortBy: 'name' | 'modifiedAt';
     sortOrder: 'asc' | 'desc';
+    showIndexNumbers: boolean;
   };
   cache: {
     maxSize: number;
@@ -59,6 +60,7 @@ export interface AppSettings {
 export const defaultSettings: AppSettings = {
   version: '1.0.0',
   rootFolder: null,
+  folderHistory: [],
   theme: 'dark',
   sidebar: {
     width: 250,
@@ -69,6 +71,7 @@ export const defaultSettings: AppSettings = {
     itemsPerPage: 20,
     sortBy: 'name',
     sortOrder: 'asc',
+    showIndexNumbers: false,
   },
   cache: {
     maxSize: 1073741824, // 1GB
@@ -117,6 +120,7 @@ export const IPC_CHANNELS = {
   
   // Thumbnails
   GET_THUMBNAIL: 'thumbnail:get',
+  GET_FOLDER_THUMBNAIL: 'thumbnail:get-folder-thumbnail',
   CLEAR_THUMBNAIL_CACHE: 'thumbnail:clear-cache',
   
   // Settings

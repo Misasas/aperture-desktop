@@ -16,7 +16,9 @@
 }
 
 .folder-select-icon {
-  font-size: 80px;
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
   margin-bottom: 16px;
 }
 

@@ -33,8 +33,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      webSecurity: false, // Allow loading local files
     },
-    icon: path.join(__dirname, '../../assets/icon.png'),
+    icon: path.join(__dirname, '../../assets/favicon.ico'),
     show: false,
   });
 
@@ -132,13 +133,17 @@ function registerIpcHandlers() {
     return metadataService.readMetadata(folderPath);
   });
 
-  ipcMain.handle(IPC_CHANNELS.WRITE_METADATA, async (_, folderPath: string, tags: string[]) => {
-    return metadataService.writeMetadata(folderPath, tags);
+  ipcMain.handle(IPC_CHANNELS.WRITE_METADATA, async (_, folderPath: string) => {
+    return metadataService.writeMetadata(folderPath);
   });
 
   // Thumbnail handlers
   ipcMain.handle(IPC_CHANNELS.GET_THUMBNAIL, async (_, filePath: string) => {
     return thumbnailService.getThumbnail(filePath);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_FOLDER_THUMBNAIL, async (_, folderPath: string) => {
+    return fileSystemService.getFolderThumbnail(folderPath);
   });
 
   ipcMain.handle(IPC_CHANNELS.CLEAR_THUMBNAIL_CACHE, async () => {

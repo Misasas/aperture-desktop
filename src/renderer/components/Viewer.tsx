@@ -6,6 +6,8 @@ interface ViewerProps {
   item: FileItem;
   currentIndex: number;
   totalCount: number;
+  showIndexNumbers?: boolean;
+  fileIndex?: number;
   onPrev: () => void;
   onNext: () => void;
   onClose: () => void;
@@ -15,6 +17,8 @@ export default function Viewer({
   item,
   currentIndex,
   totalCount,
+  showIndexNumbers = false,
+  fileIndex,
   onPrev,
   onNext,
   onClose,
@@ -62,13 +66,22 @@ export default function Viewer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [item, onClose, onPrev, onNext]);
 
-  // Handle wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  // Handle wheel zoom with native event listener
+  useEffect(() => {
     if (!item.isImage) return;
-    
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setScale(prev => Math.max(0.5, Math.min(5, prev * delta)));
+
+    const handleWheel = (e: Event) => {
+      const wheelEvent = e as WheelEvent;
+      e.preventDefault();
+      const delta = wheelEvent.deltaY > 0 ? 0.9 : 1.1;
+      setScale(prev => Math.max(0.5, Math.min(5, prev * delta)));
+    };
+
+    const viewerContent = document.querySelector('.viewer-content');
+    if (viewerContent) {
+      viewerContent.addEventListener('wheel', handleWheel, { passive: false });
+      return () => viewerContent.removeEventListener('wheel', handleWheel);
+    }
   }, [item.isImage]);
 
   // Handle double click to reset/zoom
@@ -105,12 +118,14 @@ export default function Viewer({
   }, []);
 
   // File URL for media
-  const fileUrl = `file://${item.path.replace(/\\/g, '/')}`;
+  const fileUrl = `file:///${item.path.replace(/\\/g, '/')}`;
 
   return (
     <div className="viewer" onClick={onClose}>
       <div className="viewer-header" onClick={(e) => e.stopPropagation()}>
-        <div className="viewer-title truncate">{item.name}</div>
+        <div className="viewer-title truncate">
+          {showIndexNumbers && fileIndex !== undefined ? `${fileIndex + 1}` : item.name}
+        </div>
         <div className="viewer-counter">
           {currentIndex + 1} / {totalCount}
         </div>
@@ -122,7 +137,6 @@ export default function Viewer({
       <div
         className="viewer-content"
         onClick={(e) => e.stopPropagation()}
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

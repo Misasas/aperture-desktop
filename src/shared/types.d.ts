@@ -13,13 +13,12 @@ export interface FolderItem {
     path: string;
     type: 'folder';
     modifiedAt: Date;
-    tags: string[];
     children?: (FileItem | FolderItem)[];
     isExpanded?: boolean;
+    thumbnailPath?: string;
 }
 export type FileSystemItem = FileItem | FolderItem;
 export interface FolderMetadata {
-    tags: string[];
     createdAt: string;
     updatedAt: string;
 }

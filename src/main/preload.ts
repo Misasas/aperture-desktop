@@ -24,6 +24,7 @@ const IPC_CHANNELS = {
 
   // Thumbnails
   GET_THUMBNAIL: 'thumbnail:get',
+  GET_FOLDER_THUMBNAIL: 'thumbnail:get-folder-thumbnail',
   CLEAR_THUMBNAIL_CACHE: 'thumbnail:clear-cache',
 
   // Settings
@@ -75,13 +76,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readMetadata: (folderPath: string): Promise<FolderMetadata | null> =>
     ipcRenderer.invoke(IPC_CHANNELS.READ_METADATA, folderPath),
   
-  writeMetadata: (folderPath: string, tags: string[]): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WRITE_METADATA, folderPath, tags),
+  writeMetadata: (folderPath: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WRITE_METADATA, folderPath),
 
   // Thumbnails
   getThumbnail: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_THUMBNAIL, filePath),
-  
+
+  getFolderThumbnail: (folderPath: string): Promise<string | null> =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_FOLDER_THUMBNAIL, folderPath),
+
   clearThumbnailCache: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.CLEAR_THUMBNAIL_CACHE),
 
@@ -135,8 +139,9 @@ export type ElectronAPI = {
   moveItem: (sourcePath: string, destFolder: string) => Promise<string>;
   copyFiles: (sourcePaths: string[], destFolder: string) => Promise<string[]>;
   readMetadata: (folderPath: string) => Promise<FolderMetadata | null>;
-  writeMetadata: (folderPath: string, tags: string[]) => Promise<void>;
+  writeMetadata: (folderPath: string) => Promise<void>;
   getThumbnail: (filePath: string) => Promise<string | null>;
+  getFolderThumbnail: (folderPath: string) => Promise<string | null>;
   clearThumbnailCache: () => Promise<void>;
   getSettings: () => Promise<AppSettings>;
   setSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;

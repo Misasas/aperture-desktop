@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { FileSystemItem, FolderItem, thumbnailSizes } from '@shared/types';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { FileSystemItem, thumbnailSizes } from '@shared/types';
 import GridItem from './GridItem';
 import './MainContent.css';
 
@@ -11,17 +11,10 @@ interface MainContentProps {
   thumbnailSize: 'S' | 'M' | 'L';
   sortBy: 'name' | 'modifiedAt';
   sortOrder: 'asc' | 'desc';
-  itemsPerPage: number;
+  showIndexNumbers: boolean;
   onItemClick: (item: FileSystemItem) => void;
   onContextMenu: (e: React.MouseEvent, item: FileSystemItem | null) => void;
   onNavigate: (path: string) => void;
-  onNavigateUp: () => void;
-  onSettingsChange: (settings: {
-    thumbnailSize?: 'S' | 'M' | 'L';
-    sortBy?: 'name' | 'modifiedAt';
-    sortOrder?: 'asc' | 'desc';
-    itemsPerPage?: number;
-  }) => void;
   fileOps: {
     createFolder: (parentPath: string, name?: string) => Promise<string>;
     copyFiles: (sourcePaths: string[], destFolder: string) => Promise<string[]>;
@@ -36,16 +29,15 @@ export default function MainContent({
   thumbnailSize,
   sortBy,
   sortOrder,
-  itemsPerPage,
+  showIndexNumbers,
   onItemClick,
   onContextMenu,
   onNavigate,
-  onNavigateUp,
-  onSettingsChange,
   fileOps,
 }: MainContentProps) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [displayCount, setDisplayCount] = useState(50);
   const [isDragOver, setIsDragOver] = useState(false);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
 
   // Sort items
   const sortedItems = useMemo(() => {
@@ -68,17 +60,48 @@ export default function MainContent({
     return sorted;
   }, [items, sortBy, sortOrder]);
 
-  // Pagination
-  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
-  const paginatedItems = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return sortedItems.slice(start, start + itemsPerPage);
-  }, [sortedItems, currentPage, itemsPerPage]);
+  // Create file index map (only for files, sorted by name ascending)
+  const fileIndexMap = useMemo(() => {
+    const files = items.filter(item => item.type === 'file');
+    const sortedFiles = [...files].sort((a, b) =>
+      a.name.localeCompare(b.name, 'ja', { numeric: true })
+    );
 
-  // Reset page when items change
-  React.useEffect(() => {
-    setCurrentPage(1);
+    const map = new Map<string, number>();
+    sortedFiles.forEach((file, index) => {
+      map.set(file.path, index);
+    });
+
+    return map;
+  }, [items]);
+
+  // Infinite scroll - display items
+  const displayedItems = useMemo(() => {
+    return sortedItems.slice(0, displayCount);
+  }, [sortedItems, displayCount]);
+
+  // Reset display count when path changes
+  useEffect(() => {
+    setDisplayCount(50);
   }, [currentPath]);
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const container = gridContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const threshold = 300; // Load more when 300px from bottom
+
+      if (scrollHeight - scrollTop - clientHeight < threshold && displayCount < sortedItems.length) {
+        setDisplayCount(prev => Math.min(prev + 50, sortedItems.length));
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [displayCount, sortedItems.length]);
 
   // Breadcrumb
   const breadcrumbs = useMemo(() => {
@@ -106,7 +129,10 @@ export default function MainContent({
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(true);
+
+    // Only show overlay for external file drops (not internal drags from sidebar)
+    const hasFiles = e.dataTransfer.types.includes('Files');
+    setIsDragOver(hasFiles);
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -129,17 +155,6 @@ export default function MainContent({
     }
   }, [currentPath, fileOps]);
 
-  const handleAddFiles = useCallback(async () => {
-    // This would typically open a file dialog
-    // For now, we rely on drag & drop
-  }, []);
-
-  const handleCreateFolder = useCallback(async () => {
-    if (currentPath) {
-      await fileOps.createFolder(currentPath);
-    }
-  }, [currentPath, fileOps]);
-
   const thumbSize = thumbnailSizes[thumbnailSize];
 
   return (
@@ -157,11 +172,6 @@ export default function MainContent({
       {/* Header */}
       <div className="main-header">
         <div className="breadcrumb">
-          {currentPath !== rootFolder && (
-            <button className="breadcrumb-back" onClick={onNavigateUp} title="戻る">
-              ←
-            </button>
-          )}
           {breadcrumbs.map((crumb, index) => (
             <React.Fragment key={crumb.path}>
               {index > 0 && <span className="breadcrumb-separator">/</span>}
@@ -176,67 +186,13 @@ export default function MainContent({
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="main-toolbar">
-        <div className="toolbar-left">
-          <div className="toolbar-size-btns">
-            {(['S', 'M', 'L'] as const).map((size) => (
-              <button
-                key={size}
-                className={`toolbar-btn ${thumbnailSize === size ? 'toolbar-btn-active' : ''}`}
-                onClick={() => onSettingsChange({ thumbnailSize: size })}
-              >
-                {size}
-              </button>
-            ))}
-          </div>
-
-          <div className="toolbar-divider" />
-
-          <select
-            className="toolbar-select"
-            value={sortBy}
-            onChange={(e) => onSettingsChange({ sortBy: e.target.value as 'name' | 'modifiedAt' })}
-          >
-            <option value="name">名前</option>
-            <option value="modifiedAt">更新日</option>
-          </select>
-
-          <button
-            className="toolbar-btn"
-            onClick={() => onSettingsChange({ sortOrder: sortOrder === 'asc' ? 'desc' : 'asc' })}
-            title={sortOrder === 'asc' ? '昇順' : '降順'}
-          >
-            {sortOrder === 'asc' ? '↑' : '↓'}
-          </button>
-
-          <div className="toolbar-divider" />
-
-          <select
-            className="toolbar-select"
-            value={itemsPerPage}
-            onChange={(e) => onSettingsChange({ itemsPerPage: parseInt(e.target.value) })}
-          >
-            <option value={20}>20件</option>
-            <option value={50}>50件</option>
-            <option value={100}>100件</option>
-          </select>
-        </div>
-
-        <div className="toolbar-right">
-          <button className="toolbar-btn toolbar-btn-primary" onClick={handleCreateFolder}>
-            📁+ 新規フォルダ
-          </button>
-        </div>
-      </div>
-
       {/* Grid */}
-      <div className="main-grid-container">
+      <div className="main-grid-container" ref={gridContainerRef}>
         {loading ? (
           <div className="main-loading">
             <div className="spinner" />
           </div>
-        ) : paginatedItems.length === 0 ? (
+        ) : displayedItems.length === 0 ? (
           <div className="main-empty">
             <div className="main-empty-icon">📂</div>
             <div className="main-empty-text">このフォルダは空です</div>
@@ -251,11 +207,13 @@ export default function MainContent({
               gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize.width}px, 1fr))`,
             }}
           >
-            {paginatedItems.map((item) => (
+            {displayedItems.map((item) => (
               <GridItem
                 key={item.path}
                 item={item}
                 size={thumbSize}
+                index={item.type === 'file' ? fileIndexMap.get(item.path) : undefined}
+                showIndexNumbers={showIndexNumbers}
                 onClick={() => onItemClick(item)}
                 onContextMenu={(e) => onContextMenu(e, item)}
                 onDoubleClick={() => {
@@ -270,54 +228,6 @@ export default function MainContent({
           </div>
         )}
       </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="main-pagination">
-          <button
-            className="pagination-btn"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(currentPage - 1)}
-          >
-            ←
-          </button>
-          
-          <div className="pagination-pages">
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(page => {
-                if (totalPages <= 7) return true;
-                if (page === 1 || page === totalPages) return true;
-                if (Math.abs(page - currentPage) <= 2) return true;
-                return false;
-              })
-              .map((page, index, array) => (
-                <React.Fragment key={page}>
-                  {index > 0 && array[index - 1] !== page - 1 && (
-                    <span className="pagination-ellipsis">...</span>
-                  )}
-                  <button
-                    className={`pagination-btn ${currentPage === page ? 'pagination-btn-active' : ''}`}
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </button>
-                </React.Fragment>
-              ))}
-          </div>
-
-          <button
-            className="pagination-btn"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(currentPage + 1)}
-          >
-            →
-          </button>
-
-          <span className="pagination-info">
-            全{sortedItems.length}件
-          </span>
-        </div>
-      )}
 
       {/* Drag overlay */}
       {isDragOver && (

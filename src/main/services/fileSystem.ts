@@ -16,6 +16,22 @@ export class FileSystemService {
 
   async readDirectory(dirPath: string): Promise<FileSystemItem[]> {
     try {
+      // Check if directory exists first
+      const stat = await fs.stat(dirPath);
+      if (!stat.isDirectory()) {
+        console.warn(`Path is not a directory: ${dirPath}`);
+        return [];
+      }
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        console.warn(`Directory does not exist: ${dirPath}`);
+        return [];
+      }
+      console.error('Error checking directory:', error);
+      throw error;
+    }
+
+    try {
       const entries = await fs.readdir(dirPath, { withFileTypes: true });
       const items: FileSystemItem[] = [];
 
@@ -24,7 +40,7 @@ export class FileSystemService {
         if (entry.name.startsWith('.')) continue;
 
         const fullPath = path.join(dirPath, entry.name);
-        
+
         try {
           const stats = await fs.stat(fullPath);
 
@@ -34,12 +50,11 @@ export class FileSystemService {
               path: fullPath,
               type: 'folder',
               modifiedAt: stats.mtime,
-              tags: [],
             };
             items.push(folderItem);
           } else if (entry.isFile()) {
             const ext = path.extname(entry.name).toLowerCase();
-            
+
             // Only include supported file types
             if (supportedExtensions.includes(ext)) {
               const fileItem: FileItem = {
@@ -62,7 +77,12 @@ export class FileSystemService {
       }
 
       return items;
-    } catch (error) {
+    } catch (error: any) {
+      // If directory was deleted between checks, return empty
+      if (error.code === 'ENOENT') {
+        console.warn(`Directory no longer exists: ${dirPath}`);
+        return [];
+      }
       console.error('Error reading directory:', error);
       throw error;
     }
@@ -233,12 +253,51 @@ export class FileSystemService {
 
   private debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
     let timeoutId: NodeJS.Timeout | null = null;
-    
+
     return ((...args: Parameters<T>) => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
       timeoutId = setTimeout(() => fn(...args), delay);
     }) as T;
+  }
+
+  // Get the first image in a folder (recursively)
+  async getFolderThumbnail(folderPath: string): Promise<string | null> {
+    try {
+      const firstImage = await this.findFirstImageInFolder(folderPath);
+      return firstImage;
+    } catch (error) {
+      console.error('Error getting folder thumbnail:', error);
+      return null;
+    }
+  }
+
+  private async findFirstImageInFolder(folderPath: string, maxDepth: number = 3, currentDepth: number = 0): Promise<string | null> {
+    try {
+      const entries = await fs.readdir(folderPath, { withFileTypes: true });
+
+      // Sort entries by name (ascending)
+      const sortedEntries = entries.sort((a, b) => a.name.localeCompare(b.name, 'ja', { numeric: true }));
+
+      // Check for images only in the current folder (no recursive search)
+      for (const entry of sortedEntries) {
+        if (entry.name.startsWith('.')) continue;
+
+        const fullPath = path.join(folderPath, entry.name);
+
+        if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (imageExtensions.includes(ext)) {
+            return fullPath;
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error finding image in folder:', error);
+      return null;
+    }
   }
 }
